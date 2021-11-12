@@ -29,11 +29,11 @@ namespace ChallengeAPI.Business
         {
             List<dynamic> response = new List<dynamic>();
             response.Add(ResponseExercise1());
-            response.Add(ResponseExercise2());
+            response.Add(ResponseExercise2(1));
             return response;
         }
 
-        public Result<Exercise1> ResponseExercise1()
+        public Result<Exercise1> ResponseExercise1(int performance = 0, bool isThead = true)
         {
             Result<Exercise1> result = new Result<Exercise1>();
             timeMeasure.Start();
@@ -45,11 +45,21 @@ namespace ChallengeAPI.Business
                 for (int i = 1; i <= firstCall.Info.Pages; i++)
                 {
                     nextUrl = $"{service.Url}?page={i}";
-                    threadExcercise1 = new Thread(new ThreadStart(ProcessExercise1));
-                    threadExcercise1.Start();
-                    Thread.Sleep(1);
+                    if (isThead)
+                    {
+                        threadExcercise1 = new Thread(new ThreadStart(ProcessExercise1));
+                        threadExcercise1.Start();
+                        Thread.Sleep(performance);
+                    }
+                    else
+                    {
+                        ProcessExercise1();
+                    }
                 }
-                threadExcercise1.Join();
+                if (isThead)
+                {
+                    threadExcercise1.Join();
+                }
                 result.Results.Add(exercise1);
             }
             timeMeasure.Stop();
@@ -65,15 +75,15 @@ namespace ChallengeAPI.Business
             exercise1.Count = GetCharCount(recursiveCall.Results.ToList(), exercise1.Char) + exercise1.Count;
         }
 
-        public Result<Exercise2> ResponseExercise2()
+        public Result<Exercise2> ResponseExercise2(int performance = 0, bool isThread = true)
         {
             nextUrl = string.Empty;
             timeMeasure.Start();
             var firstCall = CallService<Response>(configuration.GetSection("ServiceAPI")["episode"]);
-            for(int i = 1; i<= firstCall.Info.Pages; i++)
+            for (int i = 1; i <= firstCall.Info.Pages; i++)
             {
                 nextUrl = $"{configuration.GetSection("ServiceAPI")["episode"]}?page={i}";
-                ProcessExercise2();
+                ProcessExercise2(performance, isThread);
             }
             timeMeasure.Stop();
             result2.ExerciseName = "Episode locations";
@@ -82,17 +92,28 @@ namespace ChallengeAPI.Business
             return result2;
         }
 
-        private void ProcessExercise2()
+        private void ProcessExercise2(int performance, bool isThread)
         {
             var recursiveEpisodeCalls = CallService<EpisodeResponse>(nextUrl);
             foreach (var callT in recursiveEpisodeCalls.Results.OrderBy(x => x.Id))
             {
                 call = callT;
-                threadExcercise2 = new Thread(new ThreadStart(CallCharacter));
-                threadExcercise2.Start();
-                Thread.Sleep(1);
+                if (isThread)
+                {
+                    threadExcercise2 = new Thread(new ThreadStart(CallCharacter));
+                    threadExcercise2.Start();
+                    Thread.Sleep(performance);
+                }
+                else
+                {
+                    CallCharacter();
+                }
+
             }
-            threadExcercise2.Join();
+            if (isThread)
+            {
+                threadExcercise2.Join();
+            }
         }
 
         private void CallCharacter()
@@ -105,7 +126,7 @@ namespace ChallengeAPI.Business
         {
             List<string> result = new List<string>();
             var locationCall = CallService<List<CharacterResponse>>(locationUrl);
-            foreach(var location in locationCall)
+            foreach (var location in locationCall)
             {
                 if (!result.Contains(location.Origin.Name))
                 {
